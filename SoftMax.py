@@ -6,12 +6,14 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 # np.seterr(over='ignore' )
+from sklearn.model_selection import KFold
 
 #####################################################################################################
 #######################################  References   #####################################################
 #####################################################################################################
-#  Reference: https://github.com/MichalDanielDobrzanski/DeepLearningPython35
-#https://stackoverflow.com/questions/27380636/sklearn-kfold-acces-single-fold-instead-of-for-loop
+# http://peterroelants.github.io/posts/neural_network_implementation_part04/
+# Reference: https://github.com/MichalDanielDobrzanski/DeepLearningPython35
+# https://stackoverflow.com/questions/27380636/sklearn-kfold-acces-single-fold-instead-of-for-loop
 # Prevent Overflow: https://stackoverflow.com/questions/23128401/overflow-error-in-neural-networks-implementation
 # Reference :  https://www.youtube.com/watch?v=h3l4qz76JhQ
 
@@ -19,8 +21,7 @@ import matplotlib.pyplot as plt
 ###################################  Functions   ####################################################
 #####################################################################################################
 
-from sklearn.model_selection import KFold
-
+#  Functions from walkthough:  http://peterroelants.github.io/posts/neural_network_implementation_part04/
 def NormalizeData(data):
     return data / 255.0
 
@@ -33,33 +34,53 @@ def ArrayLabels(label):
     return label_arr
 
 def sigmoid(z):
-
     z = np.clip(z, -500, 500)
     return 1.0 / (1.0 + np.exp(-z))
 
 def sigmoid_prim(z):
     return sigmoid(z) * (1 - sigmoid(z))
 
-def probability(layer, synapses):
-    return sigmoid(np.dot(layer, synapses))
-def feed_forward(X, weights, bias):
-    return sigmoid(np.dot(X, weights) + b)
-def prediction(prob):
-    return np.argmax(prob, axis=1)
-def accuracy(predict, y):
-    p = prediction(predict)
-    return sum(p == y) / len(y)
+def softmax(z):
+    return np.exp(z) / np.sum(np.exp(z))
+
+def sigmoid_prediction(X, weight_hidden, bias_hidden):
+    return sigmoid(np.dot(X, weight_hidden) + bias_hidden)
+def softmax_prediction(X, weight_out, bias_out):
+    return softmax(np.dot(X, weight_out) + bias_out)
+
+def nn(X, weight_hidden, bias_hidden, weight_out, bias_out ):
+    hidden_layer = sigmoid_prediction(X, weight_hidden, bias_hidden)
+    return softmax_prediction(hidden_layer, weight_out, bias_out)
+
+def cost(prediction, y):
+    return - sum(prediction * np.log(y) )
+
+def error_rate(prediction, y):
+    return prediction - y
+
+def error_hidden_layer(X, weight_out, err_out):
+    return  X * ( 1 - X ) * np.dot(err_out, weight_out.T)
+
+def gradient_weight_hidden(X, err_out):
+    return np.dot(X.T, err_out)
+
+def gradient_bias_hidden(err_out):
+    return sum(err_out)
+
+def back_prop(X, weight_hidden, bias_hidden, weight_out, bias_out):
+    hidden_layer = sigmoid_prediction(X, weight_hidden, bias_hidden)
+    output_layer = softmax_prediction(hidden_layer, weight_out, bias_out)
+
+    err_out = error_out(output_layer, train_label)
+    g_weight_out = gradient_weight_hidden(hidden_layer, err_out)
+    g_bias_out = gradient_bias_hidden(err_out)
+
+    err_hidden = error_hidden_layer(hidden_layer, weight_out, err_out)
+    g_weight_hidden = np.dot(X.T, err_hidden)
+    g_bias_hidden = sum(err_hidden)
+    return g_weight_hidden, g_bias_hidden, g_weight_out, g_bias_out
 
 
-def Cost(prediction, y):
-    label_1 = -y* np.log(prediction)            # If y=1 use this equation
-    label_0 = -(1 - y)* np.log(1 - prediction)  # If y=0 use this equation
-    return sum(label_1 + label_0 ) / len(y)
-
-def DisplayLearningCurve(plot):
-    plt.plot(plot)
-    plt.interactive(False)
-    plt.show(block=True)
 
 #####################################################################################################
 #######################################  Main   #####################################################
@@ -86,37 +107,44 @@ test_data = NormalizeData(test_data[:, 1:])
 
 #  [784, 30, 10]
 np.random.seed(1)
-syn0 = 2*np.random.random((784, 30)) -1
-syn1 = 2*np.random.random((30, 10)) -1
 
 
-cycles = 3000
+#  Hidden Layer
+bias_hidden = np.random.random(1, 30)
+weight_hidden = np.random.random(784, 30)
+
+#  Out Layer
+bias_out = np.random.random(1, 10)
+weight_out = np.random.random(30, 10)
+
+# OMG, this is the best function call
+delta_bh = np.zeros_like(bias_hidden)
+delta_wh = np.zeros_like(weight_hidden)
+delta_bo = np.zeros_like(bias_out)
+delta_wo = np.zeros_like(weight_out)
+
+
+learn_rate = 1e-4
+# momentum_term = 0.9
+cycles = 500
 plot = []
 for i in range(cycles):
-    layer_0 = train_data
-    layer_1 = probability(layer_0, syn0)
-    layer_2 = probability(layer_1, syn1)
+    g_weight_hidden, g_bias_hidden, g_weight_out, g_bias_out = back_prop(X, weight_hidden, bias_hidden, weight_out, bias_out)
+
+    delta_bh = delta_bh - learn_rate * g_bias_hidden
+    delta_wh = delta_wh - learn_rate * g_weight_hidden
+    delta_bo = delta_bo - learn_rate * g_bias_out
+    delta_wo = delta_wo - learn_rate * g_weight_out
+
+    bias_hidden   += delta_bh
+    weight_hidden += delta_wh
+    bias_out      += delta_bo
+    weight_out    += delta_wo
+
+    prediction = nn(train_data, weight_hidden, bias_hidden, weight_out, bias_out )
+    plot.append(cost(prediction, train_label))
 
 
-    err_rate = train_label - layer_2
-    if(i % 1000 == 0):
-        print("Error: " + str(np.mean(abs(err_rate))))
-    plot.append(err_rate)
-
-    # plot.append(Cost(layer_2, train_label))
 
 
-    l2_delta = err_rate * sigmoid_prim(layer_2)
-    l1_delta = np.dot(l2_delta, syn1.T) * sigmoid_prim(layer_1)
 
-    syn0 += np.dot(layer_0.T, l1_delta)
-    syn1 += np.dot(layer_1.T, l2_delta)
-
-#DisplayLearningCurve(plot)
-
-layer_0 = test_data
-layer_1 = probability(layer_0, syn0)
-layer_2 = probability(layer_1, syn1)
-
-acc = accuracy(layer_2, test_label)
-print("Accuracy: ", acc)
