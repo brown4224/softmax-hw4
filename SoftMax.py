@@ -33,62 +33,82 @@ def ArrayLabels(label):
         label_arr[i][index] = 1
     return label_arr
 
-def sigmoid(z):
-    z = np.clip(z, -500, 500)
+def get_z(X, w, b):
+
+    return np.dot(w, X) + b
+
+
+def sigmoid(X, w, b):
+    z = get_z(X, w, b)
+    # z = np.clip(z, -500, 500)
     return 1.0 / (1.0 + np.exp(-z))
 
-def sigmoid_prim(z):
-    return sigmoid(z) * (1 - sigmoid(z))
+def sigmoid_prim(X, w, b):
+    # z = get_z(X, w, b)
 
-def softmax(z):
+
+    return sigmoid(X, w, b) * (1 - sigmoid(X, w, b))
+
+def softmax(X, w, b):
+    z = get_z(X, w, b)
     return np.exp(z) / np.sum(np.exp(z))
 
-def sigmoid_prediction(X, weight_hidden, bias_hidden):
-    return sigmoid(np.dot(X, weight_hidden) + bias_hidden)
-def softmax_prediction(X, weight_out, bias_out):
-    return softmax(np.dot(X, weight_out) + bias_out)
+
 
 def nn(X, weight_hidden, bias_hidden, weight_out, bias_out ):
     hidden_layer = sigmoid_prediction(X, weight_hidden, bias_hidden)
     return softmax_prediction(hidden_layer, weight_out, bias_out)
 
 def cost(prediction, y):
-    # return np.mean(abs(prediction - y))/ len(y[0])
-    # return ((prediction - y)**2).sum() / len(y[0])
     return  np.multiply(y, np.log(prediction)).sum() / len(y[0])
-    # return np.multiply(y, np.log(prediction)).sum() / len(y[0])
 
+def cost_derivative(y, layer, derviative):
+    return (layer - y) * derviative
 
-
-# return - np.multiply(T, np.log(Y)).sum() / Y.shape[0]
-
-
-# def error_rate(prediction, y):
-#     return prediction - y
 
 def error_hidden_layer(X, weight_out, err_out):
     return  X * ( 1 - X ) * np.dot(err_out, weight_out.T)
 
-# def gradient_weight_hidden(X, err_out):
-#     return np.dot(X.T, err_out)
-#
-# def gradient_bias_hidden(err_out):
-#     return np.sum(err_out)
+
 
 def back_prop(X, y,weight_hidden, bias_hidden, weight_out, bias_out):
-    hidden_layer = sigmoid_prediction(X, weight_hidden, bias_hidden)
-    output_layer = softmax_prediction(hidden_layer, weight_out, bias_out)
+
+    hidden_layer = sigmoid(X, weight_hidden, bias_hidden)
+    out_layer = sigmoid(hidden_layer, weight_out, bias_out)
+
+    s1 = sigmoid_prim(X, weight_hidden, bias_hidden)
+    s2 = sigmoid_prim(hidden_layer, weight_out, bias_out)
+
+    l2_delta = (out_layer - np.reshape(y, (10,1))) * s2
+    delta_wo = np.dot(l2_delta , hidden_layer.T)
+
+    l1_delta =  np.dot( delta_wo.T, l2_delta)  *  s1  # todo should this be the input layer?
+    # delta_bh =  np.dot(out_layer.T, delta_bo)  * sigmoid_prim(X, weight_hidden, bias_hidden)  # todo should this be the input layer?
+    # delta_bh =  np.dot(delta_bo, np.reshape(X, (1, 784)) ).T * sigmoid_prim(X, weight_hidden, bias_hidden)  # todo should this be the input layer?
+
+    print(np.dot(delta_wo.T, l2_delta).shape)
+    print(sigmoid_prim(X, weight_hidden, bias_hidden).shape)
 
 
-    # err_out = np.log(output_layer) - y
-    err_out = output_layer - y
-    g_weight_out = np.dot(hidden_layer.T, err_out) / len(y[0])
-    g_bias_out = np.sum(err_out)
 
-    err_hidden = error_hidden_layer(hidden_layer, weight_out, err_out)
-    g_weight_hidden = np.dot(X.T, err_hidden)
-    g_bias_hidden = np.sum(err_hidden)
-    return g_weight_hidden, g_bias_hidden, g_weight_out, g_bias_out
+    # delta_wh =  np.dot(delta_bh, np.reshape(X, (1, 784)).T)   # todo should this be the input layer?
+    # delta_wh = np.dot(delta_bh, X)
+    # delta_wh = np.dot(delta_bh, X.T)
+
+    print("s1", s1.shape)
+    print(s2.shape)
+    print(l2_delta.shape)
+    print(l1_delta.shape)
+    print(X.T.shape)
+    exit(1)
+    delta_wh = np.dot(l1_delta , X.T)
+
+    return delta_wh, l1_delta, delta_wo, l2_delta
+
+
+
+
+
 
 
 
@@ -133,47 +153,53 @@ small_val = 0.1
 
 
 #  Hidden Layer
-bias_hidden = np.random.random((1, 30)) * small_val
-weight_hidden = np.random.random((784, 30)) * small_val
+weight_hidden = np.random.random((30, 784)) * small_val
+bias_hidden = np.random.random((30, 1 )) * small_val
+
 
 #  Out Layer
-bias_out = np.random.random((1, 10)) * small_val
-weight_out = np.random.random((30, 10)) * small_val
+# weight_out = np.random.random((30, 10)) * small_val
+# bias_out = np.random.random((1, 10)) * small_val
+weight_out = np.random.random((10, 30)) * small_val
+bias_out = np.random.random((10, 1)) * small_val
+
+# #  Hidden Layer
+# weight_hidden = np.random.random((784, 30)) * small_val
+# bias_hidden = np.random.random((784, 1)) * small_val
+#
+#
+# #  Out Layer
+# weight_out = np.random.random((30, 10)) * small_val
+# bias_out = np.random.random((30, 1)) * small_val
+
 
 # OMG, this is the best function call
-delta_bh = np.zeros_like(bias_hidden)
 delta_wh = np.zeros_like(weight_hidden)
-delta_bo = np.zeros_like(bias_out)
+delta_bh = np.zeros_like(bias_hidden)
 delta_wo = np.zeros_like(weight_out)
+delta_bo = np.zeros_like(bias_out)
 
 
-learn_rate = 1e-4
-cycles = 300
+lr = 1e-4
+cycles = 1
 plot = []
+
+
+
 for i in range(cycles):
-    g_weight_hidden, g_bias_hidden, g_weight_out, g_bias_out = back_prop(train_data, train_label,weight_hidden, bias_hidden, weight_out, bias_out)
+    for X, Y in zip(train_data, train_label):
+        g_weight_hidden, g_bias_hidden, g_weight_out, g_bias_out = back_prop(X, Y , weight_hidden,
+                                                                             bias_hidden, weight_out, bias_out)
+        weight_hidden =  weight_hidden - lr * g_weight_hidden
+        bias_hidden =  bias_hidden - lr * g_bias_hidden
 
-    delta_bh =  delta_bh - learn_rate * g_bias_hidden
-    delta_wh =  delta_wh - learn_rate * g_weight_hidden
-    delta_bo =  delta_bo - learn_rate * g_bias_out
-    delta_wo =  delta_wo - learn_rate * g_weight_out
-
-    bias_hidden   += delta_bh
-    weight_hidden += delta_wh
-    bias_out      += delta_bo
-    weight_out    += delta_wo
-
-    pred = nn(train_data, weight_hidden, bias_hidden, weight_out, bias_out )
-    # print(pred)
-    c = cost(pred, train_label)
-    print(c)
-    plot.append(c)
+        weight_out =  weight_out - lr * g_weight_out
+        bias_out =  bias_out - lr * g_bias_out
 
 
 
-
-DisplayLearningCurve(plot)
-
-pred = nn(test_data, weight_hidden, bias_hidden, weight_out, bias_out)
-acc = accuracy(pred, test_label)
-print(acc)
+# DisplayLearningCurve(plot)
+#
+# pred = nn(test_data, weight_hidden, bias_hidden, weight_out, bias_out)
+# acc = accuracy(pred, test_label)
+# print(acc)
