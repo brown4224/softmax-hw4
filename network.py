@@ -1,4 +1,11 @@
+# Sean McGlincy
+# HW 4
+
+# https://deepnotes.io/softmax-crossentropy
+# https://stackoverflow.com/questions/27380636/sklearn-kfold-acces-single-fold-instead-of-for-loop
+# https://github.com/MichalDanielDobrzanski/DeepLearningPython35.
 # %load network.py
+
 
 """
 network.py
@@ -83,9 +90,7 @@ class Network(object):
             else:
                 print("Epoch {} complete".format(j))
 
-            # c = self.mean_err_sq(training_data)
-            # print(c)
-            # self.plot.append(c)
+
         DisplayLearningCurve(self.plot)
 
     def update_mini_batch(self, mini_batch, eta):
@@ -131,18 +136,12 @@ class Network(object):
             s = softmax(zs[-1])
             activations[-1] = s
 
-            # c = self.mean_err_sq(s)
             c =self.cost_cross_entropy(s, y)
             self.plot.append(c)
 
-            # s[range(m), y] -= 1
-            # s[range(m), y] -= 1
-            # delta = s / m
-            delta = s - y
 
 
-            # delta = self.cost_derivative(activations[-1], y) * \
-            #         softmax_prime(zs[-1])
+            delta = self.cost_derivative(activations[-1], y)
 
 
         else:
@@ -176,42 +175,21 @@ class Network(object):
                         for (x, y) in test_data]
         return sum(int(x == y) for (x, y) in test_results)
 
-    # def cost_derivative(self, output_activations, y):
-    #     """Return the vector of partial derivatives \partial C_x /
-    #     \partial a for the output activations."""
-    #
-    #     if(self.is_softmax):
-    #         # return np.sum(-np.log(output_activations[range(y.shape[0], y)])) / y.shape[0]
-    #         # m = output_activations.shape[0]
-    #     else:
-    #         return (output_activations-y)
+    def cost_derivative(self, output_activations, y):
+        """Return the vector of partial derivatives \partial C_x /
+        \partial a for the output activations."""
+
+        return (output_activations-y)
 
     def cost_cross_entropy(self, y_prediction, y):
-        # s = softmax(X)
-        # print(y)
-        # print(y_prediction)
-
-        m = y.shape[0]
-
-        y = y.reshape(1, m)
-        y_prediction = y_prediction.reshape(1, 10)
-
-        # likilihood = -1 * np.log(y_prediction[range(m), y])
         likilihood = -1 * y * np.log(y_prediction)
-        loss = np.sum(likilihood)/ m
-        return loss
+        return np.sum(likilihood)/ y.shape[0]
+
+    def mean_err_sq(self, x, y):
+
+        return np.mean(x - y) ** 2
 
 
-    def mean_err_sq(self, training_data):
-
-        cost = [(self.feedforward(x), y)
-                for (x, y) in training_data]
-
-        a, b = map(list, zip(*cost))
-        a = np.array(a)
-        b = np.array(b)
-
-        return np.mean(a - b) ** 2
 
 #### Miscellaneous functions
 def sigmoid(z):
@@ -225,17 +203,7 @@ def softmax(z):
     exp = np.exp(z - np.max(z))
     return exp / np.sum(exp)
 
-#  https://stackoverflow.com/questions/33541930/how-to-implement-the-softmax-derivative-independently-from-any-loss-function
-def softmax_prime(z):
-    s = softmax(z)
-    r = np.zeros_like(s)
-    for i in range(len(s)):
-        for j in range(len(s[0])):
-            if i == j:
-                r[i][j] =s[i] * (1 - s[i])
-            else:
-                r[i][j] =-s[i] * s[j]
-    return r
+
 
 def DisplayLearningCurve(plot):
     plt.plot(plot)
